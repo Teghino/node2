@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const User = require('../sql/modello.js');
 const jwt = require('jsonwebtoken');
 
-//lol
+
 //bcrypt
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
