@@ -48,7 +48,7 @@ router.post('/register',  (req, res) => {
       })
         .then((user) => {
           const accessToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
-            expiresIn: 86400 // scade in 24 ore
+            expiresIn: 10 // scade in 24 ore
           });
           const refreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, {
             expiresIn: 86400 * 7 // scade in 7 giorni
@@ -142,22 +142,24 @@ function authenticateToken(req, res, next) {
   });
 }
 
-router.post('/refreshToken', (req, res) => {
+router.post('/refresh', (req, res) => {
   const refreshToken = req.headers.authorization.split(' ')[1];
 
   // Verifica refresh token
   if (refreshToken == null) return res.sendStatus(401); // se non c'è un refreshToken, restituisci un errore 401
 
+
   jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
     if (err) return res.sendStatus(403); // se c'è un errore durante la verifica, restituisci un errore 403
-
+  
     const accessToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: 86400 }); // crea un nuovo accessToken
-    res.json({ accessToken: accessToken });
+    const newRefreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: 86400 * 7 }); // crea un nuovo refreshToken
+  
+    res.json({ token: accessToken, refreshToken: newRefreshToken});
   });
-
-  // Se il refresh token è valido, emetti un nuovo token e invialo al client
-  const newToken = 'nuovoToken';
-  res.json({ token: newToken });
+  
+  
+  
 });
 
 
