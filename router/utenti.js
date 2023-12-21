@@ -5,7 +5,7 @@ const User = require('../sql/modello.js');
 const jwt = require('jsonwebtoken');
 
 
-//bcrypt
+//bcrypt 
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
