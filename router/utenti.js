@@ -4,11 +4,36 @@ const bodyParser = require('body-parser');
 const User = require('../sql/modello.js');
 const jwt = require('jsonwebtoken');
 
+//caricamento foto
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
+const dir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(dir)){
+    fs.mkdirSync(dir, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, dir); // usa 'dir' qui invece di './uploads/'
+  },
+  filename: function(req, file, cb) {
+    //const date = new Date().toISOString().replace(/:/g, '-'); // sostituisci ':' con '-'
+    cb(null, req.user.email + '.png');
+  }
+});
+
+const upload = multer({ storage: storage });
+
 
 //bcrypt 
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
+//cookie
+const cookieParser = require('cookie-parser');
+router.use(cookieParser());
 
 require('dotenv').config();
 
@@ -48,7 +73,7 @@ router.post('/register',  (req, res) => {
       })
         .then((user) => {
           const accessToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
-            expiresIn: 10 // scade in 24 ore
+            expiresIn: 86400 // scade in 24 ore
           });
           const refreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, {
             expiresIn: 86400 * 7 // scade in 7 giorni
@@ -64,10 +89,9 @@ router.post('/register',  (req, res) => {
           console.error('Errore durante l\'inserimento dell\'utente:', error);
           return res.status(500).json({ error: 'Si è verificato un errore durante la registrazione.' });
         });
-    });
-    
-
+    });    
 });
+
 router.post('/login', (req, res) => {
   const dati = req.body;
   User.findOne({
@@ -127,10 +151,11 @@ router.post('/token', authenticateToken, (req, res) => {
 });
 
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token == null) return res.sendStatus(401); // se non c'è un token, restituisci un errore 401
+  const token = req.cookies.accessToken; // Leggi il token dal cookie
+  if (token == null){
+    console.log('token non trovato');
+    return res.sendStatus(401); // se non c'è un token, restituisci un errore 401
+  } 
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
@@ -143,7 +168,7 @@ function authenticateToken(req, res, next) {
 }
 
 router.post('/refresh', (req, res) => {
-  const refreshToken = req.headers.authorization.split(' ')[1];
+  const refreshToken = req.cookies.refreshToken;
 
   // Verifica refresh token
   if (refreshToken == null) return res.sendStatus(401); // se non c'è un refreshToken, restituisci un errore 401
@@ -152,8 +177,12 @@ router.post('/refresh', (req, res) => {
   jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
     if (err) return res.sendStatus(403); // se c'è un errore durante la verifica, restituisci un errore 403
   
-    const accessToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: 86400 }); // crea un nuovo accessToken
-    const newRefreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: 86400 * 7 }); // crea un nuovo refreshToken
+    const accessToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
+       expiresIn: 86400 
+    }); // crea un nuovo accessToken
+    const newRefreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, { 
+       expiresIn: 86400 * 7 
+    }); // crea un nuovo refreshToken
   
     res.json({ token: accessToken, refreshToken: newRefreshToken});
   });
@@ -163,6 +192,30 @@ router.post('/refresh', (req, res) => {
 });
 
 
-
+router.post('/upload', authenticateToken, upload.single('image'), (req, res, next) => {
+  const file = req.file;
+  if (!file) {
+    return res.status(400).send({ success: false, message: 'Nessun file caricato.' });
+  }
+  res.status(200).send({ success: true, message: 'File caricato con successo.' });
+}, (error, req, res, next) => {
+  console.log(error);
+  res.status(500).send({ success: false, message: 'Si è verificato un errore.' });
+});
 
 module.exports = router;
+
+router.post('/user/image', authenticateToken, (req, res) => {
+  const userEmail = req.user.email; // Assumendo che l'email dell'utente sia disponibile in req.user.email
+  const imagePath = path.join(__dirname, 'uploads', `${userEmail}.png`); // Assumendo che l'immagine sia un PNG
+  fs.access(imagePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error('File non esiste:', err);
+      return res.status(404).json({ error: 'Immagine non trovata.' });
+    }
+    res.sendFile(imagePath);
+  });
+},error => {
+  console.log(error);
+  res.status(500).send({ success: false, message: 'Si è verificato un errore.' });
+});
