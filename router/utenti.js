@@ -9,6 +9,8 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
+
+
 const dir = path.join(__dirname, 'uploads');
 
 if (!fs.existsSync(dir)){
@@ -58,6 +60,9 @@ router.use(bodyParser.json());
 
 router.use(express.static('public'));
 
+router.post('user/email', authenticateToken, (req, res) => {
+  res.status(200).json({email: req.user.email});
+});
   
 router.post('/register',  (req, res) => {
   console.log(req.body);
