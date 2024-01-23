@@ -96,6 +96,21 @@ router.post('user/email', authenticateToken, (req, res) => {
   res.status(200).json({email: req.user.email});
 });
   
+router.get('/prodotto/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  Oggetto.findOne({
+    where: {
+      id: id
+    },
+  }).then(oggetto => {
+    console.log(oggetto);
+    res.status(200).json({success: true, message: 'Oggetto trovato con successo.', oggetto: oggetto});
+  }).catch(error => {
+    console.error('Errore durante la ricerca dell\'oggetto:', error);
+    res.status(500).json({ error: 'Si è verificato un errore durante la ricerca dell\'oggetto.' });
+  });
+});
+
 router.post('/register',  (req, res) => {
   console.log(req.body);
     const dati = req.body;
