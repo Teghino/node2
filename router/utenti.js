@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router('../index.js');
 const bodyParser = require('body-parser');
-const User = require('../sql/modello.js');
+const {User, Oggetto, Tipologia, Tipo_oggetto} = require('../sql/modello.js');
 const jwt = require('jsonwebtoken');
 
 //caricamento foto
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-
 
 
 const dir = path.join(__dirname, 'uploads');
@@ -59,6 +58,39 @@ router.use(bodyParser.json());
 //router.use(bodyParser.urlencoded({ extended: true }));
 
 router.use(express.static('public'));
+
+// router.post('/download', authenticateToken, async (req, res) => {
+//   try {
+//   Prodotto.findOne({
+//     where: {
+//       sesso: 'u'
+//     },
+//   }).then(async (prodotto) => {
+//       res.status(200).json({success: true, message: 'File scaricato con successo.', prodotto: 'https://fotonegozio.blob.core.windows.net/foto/' + prodotto.nome + '.png'});
+//   });
+//   } catch (error) {
+//     console.error('Errore durante il download del file:', error);
+//     res.status(500).json({ error: 'Si è verificato un errore durante il download del file.' });
+//   }
+// });
+
+router.post('/ricercaTipologie', authenticateToken, (req, res) => {
+  
+  Oggetto.findAll({
+    include: [{
+      model: Tipologia,
+      attributes: [],
+      through: { model: Tipo_oggetto, attributes: [] },
+      where: { nome: req.body.tipologia }
+    }]
+  }).then(oggetti => {
+    console.log(oggetti);
+    res.status(200).json({success: true, message: 'Tipologie trovate con successo.', oggetti: oggetti});
+  }).catch(error => {
+    console.error('Errore durante la ricerca delle tipologie:', error);
+    res.status(500).json({ error: 'Si è verificato un errore durante la ricerca delle tipologie.' });
+  });
+});
 
 router.post('user/email', authenticateToken, (req, res) => {
   res.status(200).json({email: req.user.email});
