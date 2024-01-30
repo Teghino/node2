@@ -61,5 +61,33 @@ Oggetto.belongsToMany(Tipologia, { through: Tipo_oggetto, foreignKey: 'id_oggett
 Tipologia.belongsToMany(Oggetto, { through: Tipo_oggetto, foreignKey: 'id_tipologia' });
 
 
+const Taglie = sequelize.define('taglie', {
+  id: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    primaryKey: true,
+  },
+  nome: Sequelize.STRING,
+}, {
+  tableName: 'taglie',
+  freezeTableName: true
+});
 
-module.exports = {User, Oggetto, Tipologia, Tipo_oggetto};
+
+const Taglie_disponibili = sequelize.define('taglie_disponibili', {
+  id: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    primaryKey: true,
+  },
+  id_oggetto: Sequelize.INTEGER,
+  id_taglia: Sequelize.INTEGER,
+}, {
+  tableName: 'taglie_disponibili',
+  freezeTableName: true
+});
+
+Taglie.belongsToMany(Oggetto, { through: Taglie_disponibili, foreignKey: 'idTaglia' });
+Oggetto.belongsToMany(Taglie, { through: Taglie_disponibili, foreignKey: 'idOggetto' });
+
+module.exports = {User, Oggetto, Tipologia, Tipo_oggetto, Taglie, Taglie_disponibili};

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router('../index.js');
 const bodyParser = require('body-parser');
-const {User, Oggetto, Tipologia, Tipo_oggetto} = require('../sql/modello.js');
+const {User, Oggetto, Tipologia, Tipo_oggetto, Taglie, Taglie_disponibili} = require('../sql/modello.js');
 const jwt = require('jsonwebtoken');
 
 //caricamento foto
@@ -98,17 +98,20 @@ router.post('user/email', authenticateToken, (req, res) => {
   
 router.get('/prodotto/:id', authenticateToken, (req, res) => {
   const id = req.params.id;
-  Oggetto.findOne({
-    where: {
-      id: id
-    },
-  }).then(oggetto => {
-    console.log(oggetto);
-    res.status(200).json({success: true, message: 'Oggetto trovato con successo.', oggetto: oggetto});
-  }).catch(error => {
-    console.error('Errore durante la ricerca dell\'oggetto:', error);
-    res.status(500).json({ error: 'Si è verificato un errore durante la ricerca dell\'oggetto.' });
-  });
+    Taglie.findAll({
+      include: [{
+        model: Oggetto,
+        attributes: [],
+        through: { model: Taglie_disponibili, attributes: [] },
+        where: { id: id }
+      }]
+    }).then(taglie => {
+      console.log(taglie + 'ciao');
+      res.status(200).json({success: true, message: 'Oggetto trovato con successo.', taglie: taglie});
+    }).catch(error => {
+      console.error('Errore durante la ricerca delle taglie:', error);
+      res.status(500).json({ error: 'Si è verificato un errore durante la ricerca delle taglie.' });
+    });  
 });
 
 router.post('/register',  (req, res) => {
