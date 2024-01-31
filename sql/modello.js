@@ -90,4 +90,28 @@ const Taglie_disponibili = sequelize.define('taglie_disponibili', {
 Taglie.belongsToMany(Oggetto, { through: Taglie_disponibili, foreignKey: 'idTaglia' });
 Oggetto.belongsToMany(Taglie, { through: Taglie_disponibili, foreignKey: 'idOggetto' });
 
-module.exports = {User, Oggetto, Tipologia, Tipo_oggetto, Taglie, Taglie_disponibili};
+const Carrello = sequelize.define('carrelli', {
+  id: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  emailUtente: Sequelize.STRING,
+  idOggetto: Sequelize.INTEGER,
+  idTaglia: Sequelize.INTEGER,
+  numero: Sequelize.INTEGER,
+}, {
+  tableName: 'carrelli',
+  freezeTableName: true
+});
+
+User.belongsToMany(Oggetto, { through: Carrello, foreignKey: 'emailUtente' });
+Oggetto.belongsToMany(User, { through: Carrello, foreignKey: 'idOggetto' });
+
+Carrello.belongsTo(Taglie, { foreignKey: 'idTaglia' });
+Taglie.hasMany(Carrello, { foreignKey: 'idTaglia' });
+Carrello.belongsTo(Oggetto, { foreignKey: 'idOggetto' });
+Oggetto.hasMany(Carrello, { foreignKey: 'idOggetto' });
+
+module.exports = {User, Oggetto, Tipologia, Tipo_oggetto, Taglie, Taglie_disponibili, Carrello};

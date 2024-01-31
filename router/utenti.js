@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router('../index.js');
 const bodyParser = require('body-parser');
-const {User, Oggetto, Tipologia, Tipo_oggetto, Taglie, Taglie_disponibili} = require('../sql/modello.js');
+const {User, Oggetto, Tipologia, Tipo_oggetto, Taglie, Taglie_disponibili, Carrello} = require('../sql/modello.js');
 const jwt = require('jsonwebtoken');
-
+const sequelize = require('sequelize');
 //caricamento foto
 const multer = require('multer');
 const fs = require('fs');
@@ -180,6 +180,119 @@ router.post('/login', (req, res) => {
       res.status(500).send('Internal Server Error', 'errore:', error);
       console.log(error);
     });
+});
+
+
+router.post('/carrello', authenticateToken, (req, res) => {
+  const email = req.user.email; 
+  const { action, itemId, taglia } = req.body;
+
+  if (action === 'add') {
+    Carrello.findAll({
+      where: {
+        emailUtente: email,
+        idOggetto: itemId,
+      },
+      include: [{
+        model: Taglie,
+        where: { nome: taglia },
+        attributes: ['id']
+      }]
+    }).then((carrello) => {
+      if (carrello.length > 0) {
+        console.log(carrello);
+        // Utilizza l'ID della taglia recuperato dalla query findAll per aggiornare l'elemento corretto
+        Carrello.update({
+           numero: sequelize.literal('numero + 1')
+        },
+        {
+          where: {
+            emailUtente: email,
+            idOggetto: itemId,
+            idTaglia: carrello[0].dataValues.taglie.dataValues.id  // Accedi all'ID della taglia attraverso dataValues
+          }
+        }).then((carrello) => {
+          res.status(200).json({ success: true, message: 'Aggiunto un elemento', carrello: carrello});
+        }).catch((error) => {
+          console.error('Errore durante l\'inserimento dell\'oggetto nel carrello:', error);
+          return res.status(500).json({ error: 'Si è verificato un errore durante l\'inserimento dell\'oggetto nel carrello.' });
+        });
+        
+      } else {
+        Taglie.findOne({
+          where: { nome: taglia }
+        })
+        .then((taglia) => {
+          if (!taglia) {
+            throw new Error('Taglia non trovata.');
+          }
+        
+          return Carrello.create({
+            emailUtente: email,
+            idOggetto: itemId,
+            idTaglia: taglia.id,
+            numero: 1
+          });
+        })
+        .then((carrello) => {
+          res.status(200).json({ success: true, message: 'Elemento aggiunto al carrello.', carrello: carrello });
+        })
+        .catch((error) => {
+          console.error('Errore durante l\'aggiunta dell\'elemento al carrello:', error);
+          return res.status(500).json({ error: 'Si è verificato un errore durante l\'aggiunta dell\'elemento al carrello.' });
+        });
+      }
+    });
+  } else if (action === 'remove') {
+    Carrello.findOne({
+      where: {
+        emailUtente: email,
+        idOggetto: itemId,
+      },
+      include: [{
+        model: Taglie,
+        where: { nome: taglia },
+        attributes: ['id']
+      }]
+    })
+    .then((carrello) => {
+      if (carrello.numero > 1) {
+        // Se la quantità è maggiore di uno, diminuisci la quantità
+        return carrello.update({ numero: sequelize.literal('numero - 1') });
+      } else {
+        // Altrimenti, rimuovi l'elemento dal carrello
+        return carrello.destroy();
+      }
+    })
+    .then(() => {
+      res.status(200).json({ success: true, message: 'Oggetto rimosso dal carrello con successo.' });
+    })
+    .catch((error) => {
+      console.error('Errore durante la rimozione dell\'oggetto dal carrello:', error);
+      return res.status(500).json({ error: 'Si è verificato un errore durante la rimozione dell\'oggetto dal carrello.' });
+    });
+  } else if (action === 'get'){
+    Carrello.findAll({
+      where: {
+        emailUtente: email,
+      },
+      include: [{
+        model: Oggetto,
+        attributes: ['id', 'nome', 'prezzo', 'sesso', 'descrizione', 'foto'],
+      }, {
+        model: Taglie,
+        attributes: ['id', 'nome'],
+      }]
+    }).then((carrello) => {
+      res.status(200).json({ success: true, message: 'Carrello ottenuto con successo.', carrello: carrello });
+    }).catch((error) => {
+      console.error('Errore durante la ricerca del carrello:', error);
+      return res.status(500).json({ error: 'Si è verificato un errore durante la ricerca del carrello.' });
+    });
+  }
+  else {
+    return res.status(400).json({ error: 'Azione non valida.' });
+  }
 });
 
 router.get('/checkUser/:username', (req, res) => {
