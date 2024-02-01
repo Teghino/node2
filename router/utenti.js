@@ -190,8 +190,8 @@ router.post('/carrello', authenticateToken, (req, res) => {
   if (action === 'add') {
     Carrello.findAll({
       where: {
-        emailUtente: email,
-        idOggetto: itemId,
+        email_utente: email,
+        id_oggetto: itemId,
       },
       include: [{
         model: Taglie,
@@ -207,9 +207,9 @@ router.post('/carrello', authenticateToken, (req, res) => {
         },
         {
           where: {
-            emailUtente: email,
-            idOggetto: itemId,
-            idTaglia: carrello[0].dataValues.taglie.dataValues.id  // Accedi all'ID della taglia attraverso dataValues
+            email_utente: email,
+            id_oggetto: itemId,
+            id_taglia: carrello[0].dataValues.taglie.dataValues.id  // Accedi all'ID della taglia attraverso dataValues
           }
         }).then((carrello) => {
           res.status(200).json({ success: true, message: 'Aggiunto un elemento', carrello: carrello});
@@ -228,9 +228,9 @@ router.post('/carrello', authenticateToken, (req, res) => {
           }
         
           return Carrello.create({
-            emailUtente: email,
-            idOggetto: itemId,
-            idTaglia: taglia.id,
+            email_utente: email,
+            id_oggetto: itemId,
+            id_taglia: taglia.id,
             numero: 1
           });
         })
@@ -246,8 +246,8 @@ router.post('/carrello', authenticateToken, (req, res) => {
   } else if (action === 'remove') {
     Carrello.findOne({
       where: {
-        emailUtente: email,
-        idOggetto: itemId,
+        email_utente: email,
+        id_oggetto: itemId,
       },
       include: [{
         model: Taglie,
@@ -274,7 +274,7 @@ router.post('/carrello', authenticateToken, (req, res) => {
   } else if (action === 'get'){
     Carrello.findAll({
       where: {
-        emailUtente: email,
+        email_utente: email,
       },
       include: [{
         model: Oggetto,
