@@ -1,2 +1,4 @@
 # tutti i file da ignorare
 node_modules/
+dist/
+.env

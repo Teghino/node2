@@ -67,9 +67,9 @@ router.use(express.static('public'));
 // });
 router.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
   const account = 'fotonegozio';
-  const accountKey = 'r2mqU0Y8RXpX6rV3FqMfyS7t0bHhTrp8xsknS93r6WQKbpzPGf1Eg7xM4Z4CzlapBtUkpiBwBwak+ASts9HGgg==';
+  const accountKey = process.env.PASSKEY;
   const containerName = 'fotoprofilo';
-  const blobServiceClient = BlobServiceClient.fromConnectionString('DefaultEndpointsProtocol=https;AccountName=fotonegozio;AccountKey=r2mqU0Y8RXpX6rV3FqMfyS7t0bHhTrp8xsknS93r6WQKbpzPGf1Eg7xM4Z4CzlapBtUkpiBwBwak+ASts9HGgg==;EndpointSuffix=core.windows.net');
+  const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
   const containerClient = blobServiceClient.getContainerClient(containerName);
   const sharedKeyCredential = new StorageSharedKeyCredential(account, accountKey);
 
@@ -77,6 +77,7 @@ router.post('/upload', authenticateToken, upload.single('image'), async (req, re
   let blobName = req.user.email + '.png';
   blobName = blobName.replace('@', '_');
   blobName = blobName.replace('.', '_');
+  blobName = blobName + Date.now();
   
   const stream = getStream(req.file.buffer);
   const streamLength = req.file.buffer.length;
