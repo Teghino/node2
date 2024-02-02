@@ -9,6 +9,7 @@ const User = sequelize.define('utenti', {
   },
   psw: Sequelize.STRING,
   nome: Sequelize.STRING,
+  foto: Sequelize.STRING,
 }, {
   tableName: 'utenti',
   freezeTableName: true

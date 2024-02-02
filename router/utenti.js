@@ -6,27 +6,18 @@ const jwt = require('jsonwebtoken');
 const sequelize = require('sequelize');
 //caricamento foto
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
+const {  BlobServiceClient, StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions } = require('@azure/storage-blob');
+const upload = multer({ storage: multer.memoryStorage() });
 
+let intoStream;
 
-const dir = path.join(__dirname, 'uploads');
-
-if (!fs.existsSync(dir)){
-    fs.mkdirSync(dir, { recursive: true });
-}
-const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, dir); // usa 'dir' qui invece di './uploads/'
-  },
-  filename: function(req, file, cb) {
-    //const date = new Date().toISOString().replace(/:/g, '-'); // sostituisci ':' con '-'
-    cb(null, req.user.email + '.png');
-  }
+import('into-stream').then((module) => {
+  intoStream = module.default;
 });
 
-const upload = multer({ storage: storage });
-
+function getStream(buffer) {
+  return intoStream(buffer);
+}
 
 //bcrypt 
 const bcrypt = require('bcrypt');
@@ -39,6 +30,7 @@ router.use(cookieParser());
 require('dotenv').config();
 
 var cors = require('cors');
+const { blob } = require('stream/consumers');
 const corsOptions = {
   origin: 'http://localhost:4200',
   credentials: true,
@@ -73,6 +65,53 @@ router.use(express.static('public'));
 //     res.status(500).json({ error: 'Si è verificato un errore durante il download del file.' });
 //   }
 // });
+router.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
+  const account = 'fotonegozio';
+  const accountKey = 'r2mqU0Y8RXpX6rV3FqMfyS7t0bHhTrp8xsknS93r6WQKbpzPGf1Eg7xM4Z4CzlapBtUkpiBwBwak+ASts9HGgg==';
+  const containerName = 'fotoprofilo';
+  const blobServiceClient = BlobServiceClient.fromConnectionString('DefaultEndpointsProtocol=https;AccountName=fotonegozio;AccountKey=r2mqU0Y8RXpX6rV3FqMfyS7t0bHhTrp8xsknS93r6WQKbpzPGf1Eg7xM4Z4CzlapBtUkpiBwBwak+ASts9HGgg==;EndpointSuffix=core.windows.net');
+  const containerClient = blobServiceClient.getContainerClient(containerName);
+  const sharedKeyCredential = new StorageSharedKeyCredential(account, accountKey);
+
+  
+  let blobName = req.user.email + '.png';
+  blobName = blobName.replace('@', '_');
+  blobName = blobName.replace('.', '_');
+  
+  const stream = getStream(req.file.buffer);
+  const streamLength = req.file.buffer.length;
+
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  const uploadBlobResponse = await blockBlobClient.uploadStream(stream, streamLength);
+
+  console.log(`Upload block blob ${blobName} successfully`, uploadBlobResponse.requestId);;
+  await blockBlobClient.setHTTPHeaders({ blobContentType: 'image/jpeg' });
+  const blobUrl = blockBlobClient.url;
+  console.log(blobUrl);
+  const blobSAS = generateBlobSASQueryParameters({
+    containerName,
+    blobName,
+    permissions: BlobSASPermissions.parse('r'), // 'r' for read
+    startsOn: new Date(),
+    expiresOn: new Date(new Date().valueOf() + 86400), // 1 day later
+  }, sharedKeyCredential).toString();
+  
+  const blobUrlWithSAS = `https://${account}.blob.core.windows.net/${containerName}/${blobName}?${blobSAS}`;
+  
+  console.log(blobUrlWithSAS);
+
+  User.update({foto: blobUrl}, {
+    where: {
+      email: req.user.email
+    }
+  }).then((user) => {
+    res.status(200).json({success: true, message: 'Foto caricata con successo.', foto: blobUrlWithSAS});
+  }).catch((error) => {
+    console.error('Errore durante il caricamento della foto:', error);
+    res.status(500).json({ error: 'Si è verificato un errore durante il caricamento della foto.' });
+  });
+});
+
 
 router.post('/ricercaTipologie', authenticateToken, (req, res) => {
   
@@ -359,31 +398,20 @@ router.post('/refresh', (req, res) => {
   
 });
 
-
-router.post('/upload', authenticateToken, upload.single('image'), (req, res, next) => {
-  const file = req.file;
-  if (!file) {
-    return res.status(400).send({ success: false, message: 'Nessun file caricato.' });
-  }
-  res.status(200).send({ success: true, message: 'File caricato con successo.' });
-}, (error, req, res, next) => {
-  console.log(error);
-  res.status(500).send({ success: false, message: 'Si è verificato un errore.' });
+router.post('/user/image', authenticateToken, (req, res) => {
+  const email = req.user.email;
+  User.findOne({
+    where: {
+      email: email
+    }
+  }).then((user) => {
+    res.status(200).json({success: true, message: 'Foto trovata con successo.', foto: user.foto});
+  }).catch(error => {
+    console.error('Errore durante la ricerca della foto:', error);
+    res.status(500).json({ error: 'Si è verificato un errore durante la ricerca della foto.' });
+  });
 });
+
+
 
 module.exports = router;
-
-router.post('/user/image', authenticateToken, (req, res) => {
-  const userEmail = req.user.email; // Assumendo che l'email dell'utente sia disponibile in req.user.email
-  const imagePath = path.join(__dirname, 'uploads', `${userEmail}.png`); // Assumendo che l'immagine sia un PNG
-  fs.access(imagePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      console.error('File non esiste:', err);
-      return res.status(404).json({ error: 'Immagine non trovata.' });
-    }
-    res.sendFile(imagePath);
-  });
-},error => {
-  console.log(error);
-  res.status(500).send({ success: false, message: 'Si è verificato un errore.' });
-});
