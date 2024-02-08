@@ -117,11 +117,14 @@ router.post('/upload', authenticateToken, upload.single('image'), async (req, re
 router.post('/ricercaTipologie', authenticateToken, (req, res) => {
   
   Oggetto.findAll({
+    where: {
+      sesso: req.body.sesso
+    },
     include: [{
       model: Tipologia,
       attributes: [],
       through: { model: Tipo_oggetto, attributes: [] },
-      where: { nome: req.body.tipologia }
+      where: { nome: req.body.tipologia}
     }]
   }).then(oggetti => {
     console.log(oggetti);
